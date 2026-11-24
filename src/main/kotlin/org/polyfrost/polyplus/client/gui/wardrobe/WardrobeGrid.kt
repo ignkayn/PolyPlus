@@ -38,6 +38,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import org.polyfrost.compose.host.controller.ControllerButton
+import org.polyfrost.compose.host.controller.Controllers
+import org.polyfrost.compose.host.controller.controllerAction
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -467,6 +471,8 @@ private fun WardrobeCard(
     val hover = rememberHoverState()
     val hovered = hover.hovered
     var menuOpen by remember { mutableStateOf(false) }
+    var focused by remember { mutableStateOf(false) }
+    val padFocused = focused && Controllers.isActive
     val shape = OneConfigTheme.shape(12.dp)
     val highlight = theme.textColor.copy(alpha = theme.textColor.alpha * theme.hoverOverlayAlpha)
     Box(
@@ -483,6 +489,12 @@ private fun WardrobeCard(
                 )
             }
             .then(if (equipped) Modifier.border(1.dp, OneConfigTheme.accent, shape) else Modifier)
+            .onFocusChanged { focused = it.hasFocus }
+            .controllerAction(ControllerButton.X, "More", enabled = menu.isNotEmpty()) { menuOpen = true }
+            .controllerAction(ControllerButton.Y, "Next style", enabled = enabled && variants.size > 1) {
+                val at = variants.indexOfFirst { it.id == selectedVariantId }
+                onPickVariant(variants[(at + 1).mod(variants.size)].id)
+            }
             .hoverable(hover.interactionSource)
             .cardSelection(selected && !equipped, shape, CardOutline)
             .controlInteraction(hover.interactionSource, shape, if (equipped) NoHoverFill else OutlineOnHover, enabled, focusRing = false, pointerIcon = null)
@@ -513,7 +525,7 @@ private fun WardrobeCard(
                         AnimatedPreviewImage(preview, Modifier.fillMaxSize().clip(OneConfigTheme.shape(5.dp)))
                     }
                     if (previewUrl != null) AnimatedTag(Modifier.align(Alignment.TopStart).padding(4.dp))
-                    if (hovered && variants.size > 1) {
+                    if ((hovered || padFocused) && variants.size > 1) {
                         VariantSwatches(
                             variants = variants,
                             selectedVariantId = selectedVariantId,
@@ -539,7 +551,7 @@ private fun WardrobeCard(
                                 entries = if (enabled) menu else menu.map { entry -> if (entry is MenuAction) MenuAction(entry.labelText, entry.onClick, enabled = false) else entry },
                                 expanded = menuOpen,
                                 onExpandedChange = { menuOpen = it },
-                                modifier = Modifier.requiredSize(ControlSize.Compact.height).hiddenUntilHover(hovered || menuOpen),
+                                modifier = Modifier.requiredSize(ControlSize.Compact.height).hiddenUntilHover(hovered || menuOpen || padFocused),
                                 sound = null,
                                 tooltip = null,
                                 menuSound = null,
